@@ -27,7 +27,7 @@ export GOOGLE_API_KEY="YOUR_API_KEY_HERE"
 
 - 5. run server
 ```
-uvicorn main:app --reload --port 8002
+uv run uvicorn main:app --reload --port 8002
 ```
 
 - 6. test

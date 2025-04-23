@@ -6,6 +6,9 @@ from fastapi import File, UploadFile, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 import mimetypes # To guess file type
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- Configuration ---
 # Best practice: Store your API key securely (e.g., environment variable)
@@ -128,4 +131,4 @@ async def read_root_gemini():
 # --- Run the app ---
 if __name__ == "__main__":
     print("Starting FastAPI server for Gemini Transcription...")
-    uvicorn.run("main_gemini:app", host="0.0.0.0", port=8002, reload=True) # Use a different port (e.g., 8002)
+    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True) # Use a different port (e.g., 8002)
