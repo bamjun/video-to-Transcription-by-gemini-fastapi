@@ -30,4 +30,9 @@ export GOOGLE_API_KEY="YOUR_API_KEY_HERE"
 uvicorn main:app --reload --port 8002
 ```
 
+- 6. test
+```
+http://localhost:8002/docs
+```
+
 ![alt text](images/markdown-image.png)
