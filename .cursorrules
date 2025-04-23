@@ -1,0 +1,62 @@
+# gitcommit message
+- **Feat**: Implement new feature  
+- **Add**: Add asset files  
+- **Fix**: Fix bugs  
+- **Docs**: Add or update documentation  
+- **Style**: Styling work (no code logic changes)  
+- **Refactor**: Code refactoring (no functional changes)  
+- **Test**: Add or modify tests  
+- **Deploy**: Deployment-related changes  
+- **Conf**: Build or environment configuration  
+- **Chore**: Miscellaneous tasks  
+
+Write the first line of the commit message in under 30 characters, and add detailed information from the next line.
+
+```example1
+[feat] new feature
+- new feature description
+- new feature description
+- new feature description
+```
+
+```example2
+[fix] fix bug
+- fix bug description
+- fix bug description
+- fix bug description
+```
+
+```example3
+[refactor] refactor code
+- refactor code description
+- refactor code description
+- refactor code description
+```
+
+```example4
+[test] add test
+- add test description
+- add test description
+- add test description
+```
+
+```example5
+[docs] add docs
+- add docs description
+- add docs description
+- add docs description
+```
+
+```example6
+[style] style code
+- style code description
+- style code description
+- style code description
+```
+
+```example7
+[chore] chore
+- chore description
+- chore description
+- chore description
+```
