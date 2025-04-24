@@ -49,6 +49,9 @@ class FileStatusResponse(BaseModel):
     active: bool
     status: str
 
+# 파일 업로드 응답 모델 (FileInfo 재사용)
+FileUploadResponse = FileInfo
+
 # --- Constants ---
 FILE_PROCESSING_TIMEOUT_SECONDS = 3000  # 50 minutes timeout for file processing
 FILE_PROCESSING_CHECK_INTERVAL_SECONDS = 30  # Check every 30 seconds
@@ -111,7 +114,7 @@ async def transcribe_existing_file(file_id: str, model: str = "gemini-2.5-pro-ex
             prompt = """Please transcribe the audio content of the provided video/audio file.
 Identify different speakers in the conversation to the best of your ability. You can label them as "Speaker 1", "Speaker 2", etc., or use contextual clues if possible.
 Present the transcription clearly, indicating who is speaking for each part of the conversation.
-Also, include approximate timestamps (e.g., [00:01], [02:15]) for each speaker’s section to provide temporal context.
+Also, include approximate timestamps (e.g., [00:01], [02:15]) for each speaker's section to provide temporal context.
 Note: Precise, timestamped speaker diarization like dedicated speech APIs might not be possible, but please provide the most informative and time-referenced speaker-differentiated transcript you can generate.
 """
 
@@ -163,9 +166,88 @@ Note: Precise, timestamped speaker diarization like dedicated speech APIs might 
         print(f"Error checking or processing file {full_file_name}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to check or process file {full_file_name}: {e}")
 
-@app.post("/transcribe_gemini/", response_model=GeminiTranscriptionResponse)
-async def transcribe_with_gemini(file: UploadFile = File(...)):
+# 새로운 엔드포인트: 파일만 Gemini 서버에 업로드
+@app.post("/upload_file/", response_model=FileUploadResponse)
+async def upload_file_to_gemini(file: UploadFile = File(...)):
     """
+    Uploads a video/audio file to the Gemini File API 
+    without initiating transcription. Returns info about the uploaded file.
+    """
+    # --- Basic File Validation (재사용) ---
+    content_type = file.content_type
+    if not content_type or not (
+        content_type.startswith("video/") or content_type.startswith("audio/")
+    ):
+        guessed_type, _ = mimetypes.guess_type(file.filename or "unknown")
+        if not guessed_type or not (
+            guessed_type.startswith("video/") or guessed_type.startswith("audio/")
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {content_type or guessed_type or 'unknown'}. Please upload video or audio.",
+            )
+        content_type = guessed_type
+    print(f"Processing file for upload: {file.filename}, Content-Type: {content_type}")
+
+    # --- Read File Content and Upload using File API (재사용) ---
+    temp_file_path = None
+    uploaded_file_info = None
+    try:
+        # Create a temporary file to store the upload
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=os.path.splitext(file.filename or "")[1]
+        ) as temp_file:
+            temp_file_path = temp_file.name
+            content = await file.read()
+            if not content:
+                raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+            temp_file.write(content)
+            print(f"Saved uploaded file temporarily to: {temp_file_path}")
+
+        # Upload the file using the File API
+        print(f"Uploading temporary file {temp_file_path} to Gemini File API...")
+        uploaded_file = genai.upload_file(
+            path=temp_file_path, display_name=file.filename
+        )
+        # Note: The file state will likely be PROCESSING initially.
+        print(f"Successfully initiated upload. File Name: {uploaded_file.name}, Initial State: {uploaded_file.state.name}")
+        
+        # 응답에 포함할 정보 구성
+        create_time_str = uploaded_file.create_time.isoformat() if uploaded_file.create_time else "Unknown"
+        uploaded_file_info = FileUploadResponse(
+            name=uploaded_file.name,
+            display_name=uploaded_file.display_name,
+            state=uploaded_file.state.name, # 초기 상태 (PROCESSING일 가능성 높음)
+            create_time=create_time_str,
+            size_bytes=uploaded_file.size_bytes,
+            uri=uploaded_file.uri
+        )
+
+    except HTTPException:  # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Handle file reading, temp file creation, or upload errors
+        raise HTTPException(
+            status_code=500, detail=f"Failed during file preparation or upload: {e}"
+        )
+    finally:
+        # Clean up the local temporary file
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+            print(f"Cleaned up temporary file: {temp_file_path}")
+            
+    if not uploaded_file_info:
+         raise HTTPException(status_code=500, detail="File upload process failed to return file info.")
+
+    # Return info about the uploaded file
+    return uploaded_file_info
+
+@app.post("/transcribe_gemini/", response_model=GeminiTranscriptionResponse)
+async def transcribe_with_gemini(file: UploadFile = File(...), model_name: str = "gemini-1.5-pro-latest"): # 모델 선택 추가
+    """
+    DEPRECATED: Use /upload_file/ then /transcribe_file/{file_id}/ for large files.
+    This endpoint might still work for smaller files but is less robust.
+    
     Uploads a video/audio file and uses Gemini
     to generate a transcript, attempting speaker identification.
     Uses the Gemini File API for large files and waits for the file to be ACTIVE.
@@ -274,9 +356,7 @@ Note: Precise, timestamped speaker diarization like dedicated speech APIs might 
 
     # --- Select Gemini Model ---
     # Use the latest available model supporting video/audio input
-    model = genai.GenerativeModel(
-        "gemini-2.5-pro-exp-03-25"
-    )  # Or gemini-1.5-flash-latest for faster/cheaper option if sufficient
+    model = genai.GenerativeModel(model_name)
 
     # --- Call Gemini API --- #
     print(
