@@ -20,15 +20,28 @@ cd video-to-Transcription-by-gemini-fastapi
 uv sync
 ```
 
-- 4. set token as environment
-```
-export GOOGLE_API_KEY="YOUR_API_KEY_HERE"
-```
+- 4. set token as environment  
+  - set in shell  
+  ```bash
+  export GOOGLE_API_KEY="YOUR_API_KEY_HERE"
+  ```
 
-- 5. run server
-```
-uv run uvicorn main:app --reload --port 8002
-```
+  - set by '.env' file
+  ```bash
+  echo "GOOGLE_API_KEY='YOUR_API_KEY_HERE'" > .env
+  ```
+
+- 5. run server  
+  - by uvicorn  
+  ```
+  uv run uvicorn main:app --reload --port 8002
+  ```
+
+  - by python file  
+  ```
+  uv run python main.py
+  ```
+
 
 - 6. test
 ```
